@@ -13,9 +13,10 @@ sync_file() {
   destination_dir="$(dirname "${destination}")"
   mkdir -p "${destination_dir}"
 
-  tmp_file="$(mktemp "${destination}.tmp.XXX")"
+  tmp_file="$(mktemp "${destination}.tmp.XXXXXX")"
   curl --fail --silent --show-error --location "${url}" --output "${tmp_file}"
   mv "${tmp_file}" "${destination}"
+  chmod 0644 "${destination}"
 
   printf "Synced %s\n" "${destination}"
 }
