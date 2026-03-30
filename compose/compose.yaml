@@ -23,8 +23,14 @@ services:
       - ./lightspeed-core-configs/rhdh-profile.py:/app-root/rhdh-profile.py:ro
       - ./llama-stack-configs/config.yaml:/app-root/config.yaml:ro
       - ./rag-content:/rag-content
+      - ./feedback-data:/tmp/data/feedback
     env_file:
       - ./env/values.env
+    environment:
+      ENABLE_SAFETY: "true"
+    depends_on:
+      ollama:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -35,3 +41,38 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+  mcp-server:
+    image: quay.io/redhat-ai-dev/test-mcp-server:latest
+    ports:
+      - "8888:8888"
+  ollama:
+      image: ${OLLAMA_IMAGE}
+      env_file:
+        - ./env/values.env
+      entrypoint:
+        - /bin/sh
+        - -c
+      command:
+        - |
+          set -e
+          MODEL="${SAFETY_MODEL:-llama-guard3:8b}"
+          ollama serve &
+          OLLAMA_PID=$$!
+          until ollama list >/dev/null 2>&1; do
+            sleep 1
+          done
+          ollama pull "$${MODEL}"
+          wait "$${OLLAMA_PID}"
+      ports:
+        - "11434:11434"
+      volumes:
+        - ollama-data:/root/.ollama
+      healthcheck:
+        test: ["CMD-SHELL", "MODEL=\"$${SAFETY_MODEL:-llama-guard3:8b}\"; ollama list | grep -q \"$${MODEL}\""]
+        interval: 5s
+        timeout: 3s
+        retries: 20
+        start_period: 15s
+
+volumes:
+  ollama-data:

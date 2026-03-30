@@ -19,7 +19,7 @@ COMPOSE ?= $(CONTAINER_ENGINE) compose
 LOCAL_COMPOSE_PATH=./compose/compose.yaml
 
 ENV_FILES := --env-file ./compose/env/default-values.env
-ifneq ($(wildcard env/values.env),)
+ifneq ($(wildcard ./compose/env/values.env),)
 ENV_FILES += --env-file ./compose/env/values.env
 endif
 
@@ -35,9 +35,22 @@ get-rag: ## Download a copy of the RAG embedding model and vector database
 	chmod -R 777 ./compose/rag-content
 
 .PHONY: compose-up
-compose-up:
+compose-up: prep-feedback-dir
 	$(COMPOSE) $(ENV_FILES) -f $(LOCAL_COMPOSE_PATH) up -d
+
+.PHONY: prep-feedback-dir
+prep-feedback-dir:
+	mkdir -p ./compose/feedback-data
+	chmod 777 ./compose/feedback-data
 
 .PHONY: compose-down
 compose-down:
 	$(COMPOSE) $(ENV_FILES) -f $(LOCAL_COMPOSE_PATH) down
+
+.PHONY: test-suite-build
+test-suite-build:
+	$(COMPOSE) $(ENV_FILES) --profile tests -f $(LOCAL_COMPOSE_PATH) build test-suite
+
+.PHONY: test-suite-run
+test-suite-run:
+	$(COMPOSE) $(ENV_FILES) --profile tests -f $(LOCAL_COMPOSE_PATH) run --rm test-suite

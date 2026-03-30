@@ -1,3 +1,9 @@
 .qodo
 values.env
 rag-content
+results
+__pycache__
+*.pyc
+.pytest_cache
+feedback-data
+.venv
