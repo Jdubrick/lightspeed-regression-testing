@@ -30,9 +30,6 @@ cp compose/env/default-values.env compose/env/values.env
 
 ## Lightspeed API Regression Test Suite
 
-A provider-aware Python regression suite lives in `test-suite` and validates
-Lightspeed Core API behavior from `cases.md`.
-
 ### Provider Modes
 
 Use `PROVIDER_MODE` to choose which inference providers run:
