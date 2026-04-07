@@ -10,6 +10,14 @@ to overwrite local copies with the exact upstream versions:
 ./scripts/sync.sh
 ```
 
+To overwrite local copies with versions from your personal forks:
+
+```bash
+export LIGHTSPEED_CONFIGS_REPO='<your-user>/<fork-repo-name>'
+export LIGHTSPEED_CONFIGS_REPO_BRANCH='<your-branch>'
+./scripts/sync.sh
+```
+
 The sync process updates these tracked files:
 
 - `compose/llama-stack-configs/config.yaml`

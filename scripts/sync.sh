@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIGHTSPEED_CONFIGS_REPO=${LIGHTSPEED_CONFIGS_REPO:-'redhat-ai-dev/lightspeed-configs'}
+LIGHTSPEED_CONFIGS_REPO_BRANCH=${LIGHTSPEED_CONFIGS_REPO_BRANCH:-'main'}
+REPO_RAW_URL="https://raw.githubusercontent.com/${LIGHTSPEED_CONFIGS_REPO}/${LIGHTSPEED_CONFIGS_REPO_BRANCH}"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LIGHTSPEED_STACK_PATH="${REPO_ROOT}/compose/lightspeed-core-configs/lightspeed-stack.yaml"
 
@@ -43,21 +46,21 @@ EOF
 }
 
 sync_file \
-  "https://raw.githubusercontent.com/redhat-ai-dev/lightspeed-configs/main/llama-stack-configs/config.yaml" \
+  "${REPO_RAW_URL}/llama-stack-configs/config.yaml" \
   "${REPO_ROOT}/compose/llama-stack-configs/config.yaml"
 
 sync_file \
-  "https://raw.githubusercontent.com/redhat-ai-dev/lightspeed-configs/main/lightspeed-core-configs/lightspeed-stack.yaml" \
+  "${REPO_RAW_URL}/lightspeed-core-configs/lightspeed-stack.yaml" \
   "${LIGHTSPEED_STACK_PATH}"
 
 ensure_lightspeed_mcp_server "${LIGHTSPEED_STACK_PATH}"
 
 sync_file \
-  "https://raw.githubusercontent.com/redhat-ai-dev/lightspeed-configs/main/lightspeed-core-configs/rhdh-profile.py" \
+  "${REPO_RAW_URL}/lightspeed-core-configs/rhdh-profile.py" \
   "${REPO_ROOT}/compose/lightspeed-core-configs/rhdh-profile.py"
 
 sync_file \
-  "https://raw.githubusercontent.com/redhat-ai-dev/lightspeed-configs/main/env/default-values.env" \
+  "${REPO_RAW_URL}/env/default-values.env" \
   "${REPO_ROOT}/compose/env/default-values.env"
 
 printf "Upstream config sync complete.\n"
