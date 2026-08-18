@@ -1,5 +1,29 @@
 # Lightspeed Regression Testing Hub
 
+## Release branches and image tags
+
+This repository tracks one Git branch per RHDH release, plus `main` for the next unreleased line.
+
+| Git branch | Image tags on push/merge |
+|---|---|
+| `main` | `latest` |
+| `release-1.10` | `release-1.10-<MMDDYYYY>-<sha7>` and `release-1.10-latest` |
+| `release-X.Y` | `release-X.Y-<MMDDYYYY>-<sha7>` and `release-X.Y-latest` |
+
+The dated tag uses UTC (`08182026` for 18 Aug 2026) and the first seven characters of the commit that triggered the build, for example `release-1.10-08182026-abcdef1`. The `*-latest` tag (or `latest` on `main`) always points at the most recent successful build from that branch.
+
+OCP deploys from a branch should use that branch's floating tag. Set `images.newTag` for `lightspeed-regression-runner` in [ocp/kustomization.yaml](./ocp/kustomization.yaml) to `latest` on `main` and `release-X.Y-latest` on `release-X.Y`.
+
+To cut a new release line from `main`:
+
+```bash
+git checkout main
+git pull
+git checkout -b release-X.Y
+# pin the runner image to release-X.Y-latest in ocp/kustomization.yaml
+git push -u origin release-X.Y
+```
+
 ## Sync Upstream Configs
 
 This repository mirrors selected upstream configuration files from

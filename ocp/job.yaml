@@ -32,7 +32,7 @@ spec:
             - name: RESULTS_DIR
               value: /tmp/results
             - name: PROVIDER_MODE
-              value: vllm_only
+              value: both
             - name: READINESS_GRACE_SECONDS
               value: "15"
           args:

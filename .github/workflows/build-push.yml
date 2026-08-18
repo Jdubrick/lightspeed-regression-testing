@@ -17,14 +17,15 @@ name: Test Suite Build
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - 'release-*'
 
 env:
   IMAGE_NAME: lightspeed-regression-runner
   IMAGE_REGISTRY: quay.io
   REGISTRY_ORG: rh-ee-jdubrick
   CONTAINER_FILE: test-suite/Containerfile
-  TAG_BASE: latest
 
 jobs:
   build-and-push:
@@ -42,14 +43,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Compute image tags
+        id: compute_tags
+        run: |
+          branch="${GITHUB_REF_NAME}"
+          date_utc="$(date -u +%m%d%Y)"
+          short_sha="${GITHUB_SHA:0:7}"
+
+          if [[ "${branch}" == "main" ]]; then
+            printf -v tags '%s\n' "latest"
+          else
+            printf -v tags '%s\n' \
+              "${branch}-${date_utc}-${short_sha}" \
+              "${branch}-latest"
+          fi
+
+          {
+            echo "tags<<EOF"
+            printf '%s' "${tags}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "Branch: ${branch}"
+          echo "UTC date: ${date_utc}"
+          echo "Tags:"
+          printf '%s' "${tags}"
+
       - name: Build image with Buildah
         id: build_image
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
           tags: |
-            ${{ env.TAG_BASE }}
-            ${{ github.sha }}
+            ${{ steps.compute_tags.outputs.tags }}
           containerfiles: |
             ${{ env.CONTAINER_FILE }}
           archs: amd64, arm64
@@ -63,10 +89,15 @@ jobs:
           echo 'Tags: ${{ steps.build_image.outputs.tags }}'
 
       - name: Check manifest
+        env:
+          IMAGE: ${{ steps.build_image.outputs.image }}
+          TAGS: ${{ steps.compute_tags.outputs.tags }}
         run: |
           set -x
-          buildah manifest inspect ${{ steps.build_image.outputs.image }}:${{ env.TAG_BASE }}
-          buildah manifest inspect ${{ steps.build_image.outputs.image }}:${{ github.sha }}
+          while IFS= read -r tag; do
+            [[ -z "${tag}" ]] && continue
+            buildah manifest inspect "${IMAGE}:${tag}"
+          done <<< "${TAGS}"
 
       - name: Push image to Quay.io
         uses: redhat-actions/push-to-registry@v2
