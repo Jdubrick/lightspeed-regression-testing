@@ -11,7 +11,7 @@ images:
   - name: quay.io/redhat-ai-dev/test-mcp-server
     newTag: latest
   - name: quay.io/rh-ee-jdubrick/lightspeed-regression-runner
-    newTag: latest
+    newTag: release-1.10-latest
 
 resources:
   - pvc.yaml
