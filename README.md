@@ -34,6 +34,8 @@ to overwrite local copies with the exact upstream versions:
 ./scripts/sync.sh
 ```
 
+On `main`, the script defaults to the `main` branch of lightspeed-configs. On `release-X.Y`, it defaults to that same release branch.
+
 To overwrite local copies with versions from your personal forks:
 
 ```bash
