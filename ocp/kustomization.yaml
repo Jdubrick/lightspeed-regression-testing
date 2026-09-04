@@ -10,7 +10,7 @@ images:
     newTag: 0.6.2
   - name: quay.io/redhat-ai-dev/test-mcp-server
     newTag: latest
-  - name: quay.io/rh-ee-jdubrick/lightspeed-regression-runner
+  - name: quay.io/redhat-ai-dev/lightspeed-regression-runner
     newTag: release-1.10-latest
 
 resources:
