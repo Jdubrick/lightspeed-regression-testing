@@ -20,7 +20,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: lightspeed-regression-test-runner
-          image: quay.io/rh-ee-jdubrick/lightspeed-regression-runner:latest
+          image: quay.io/redhat-ai-dev/lightspeed-regression-runner:latest
           envFrom:
             - secretRef:
                 name: llama-stack-secrets

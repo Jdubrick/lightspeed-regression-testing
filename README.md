@@ -3,6 +3,7 @@
 ## Release branches and image tags
 
 This repository tracks one Git branch per RHDH release, plus `main` for the next unreleased line.
+The test runner image is published at `quay.io/redhat-ai-dev/lightspeed-regression-runner`.
 
 | Git branch | Image tags on push/merge |
 |---|---|
