@@ -1,2 +1,0 @@
-"""Lightspeed regression test helpers."""
-
