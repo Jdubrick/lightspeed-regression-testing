@@ -1,0 +1,21 @@
+services:
+  test-mcp-server:
+    image: ${TEST_MCP_SERVER_IMAGE:?TEST_MCP_SERVER_IMAGE must be set}
+    # The service is reachable by its Compose DNS name.  It must not publish
+    # its port on the host running the regression suite.
+
+  lightspeed-core:
+    depends_on:
+      - test-mcp-server
+    volumes:
+      - ${GENERATED_LCORE_CONFIG:?GENERATED_LCORE_CONFIG must be set}:/app-root/lightspeed-stack.yaml:Z
+      - ${FEEDBACK_STORAGE_PATH:?FEEDBACK_STORAGE_PATH must be set}:/tmp/data/feedback:Z
+    environment:
+      ENABLE_OPENAI: "true"
+      ENABLE_VLLM: "true"
+      ENABLE_VALIDATION: "true"
+      VALIDATION_PROVIDER: "vllm"
+      VALIDATION_MODEL_NAME: ${VALIDATION_MODEL_NAME:?VALIDATION_MODEL_NAME must be set}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY must be set}
+      VLLM_URL: ${VLLM_URL:?VLLM_URL must be set}
+      VLLM_API_KEY: ${VLLM_API_KEY:?VLLM_API_KEY must be set}

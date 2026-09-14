@@ -1,9 +1,10 @@
 .qodo
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+results/
 values.env
-rag-content
-results
-__pycache__
-*.pyc
-.pytest_cache
-feedback-data
-.venv
+rag-content/
+feedback-data/

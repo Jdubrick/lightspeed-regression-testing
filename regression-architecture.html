@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Proposed architecture and execution flow for a black-box LCORE regression suite.">
+  <title>LCORE regression suite architecture</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: light-dark(#f5f3ef, #111315);
+      --surface: light-dark(#ffffff, #191c1f);
+      --surface-2: light-dark(#ebe8e1, #22262a);
+      --surface-3: light-dark(#f8f7f4, #15181a);
+      --text: light-dark(#1d1d1d, #f2f1ee);
+      --muted: light-dark(#62605b, #aaa8a3);
+      --line: light-dark(#d5d0c7, #3a3f44);
+      --accent: light-dark(#c9190b, #f0564a);
+      --accent-soft: light-dark(#f8d7d4, #44211f);
+      --blue: light-dark(#0066cc, #73bcf7);
+      --blue-soft: light-dark(#d9e8f7, #18354b);
+      --green: light-dark(#3e8635, #7cc674);
+      --green-soft: light-dark(#deefdc, #203c24);
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    button, code { font: inherit; }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 56px 0 80px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 850px;
+      margin-bottom: 18px;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 1rem;
+      line-height: 1.3;
+    }
+
+    .lede {
+      max-width: 760px;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .principles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .principles li,
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      padding: 6px 11px;
+      font-size: 0.83rem;
+      font-weight: 650;
+    }
+
+    section {
+      margin-top: 72px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1.2fr);
+      gap: 40px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .section-heading p {
+      margin-bottom: 2px;
+      color: var(--muted);
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 86px minmax(0, 1fr);
+      align-items: stretch;
+    }
+
+    .system {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      min-width: 0;
+    }
+
+    .system-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+      padding: 20px;
+    }
+
+    .system-header p,
+    .system-header h3 { margin: 0; }
+
+    .system-header p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .owner {
+      flex: none;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .components {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .component {
+      min-height: 128px;
+      background: var(--surface);
+      padding: 20px;
+    }
+
+    .component p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .component.optional { background: var(--surface-3); }
+
+    .connector {
+      display: grid;
+      place-items: center;
+      position: relative;
+      color: var(--accent);
+    }
+
+    .connector::before {
+      content: "";
+      position: absolute;
+      right: 12px;
+      left: 12px;
+      height: 2px;
+      background: currentColor;
+    }
+
+    .connector::after {
+      content: "";
+      position: absolute;
+      right: 11px;
+      width: 10px;
+      height: 10px;
+      border-top: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+      transform: rotate(45deg);
+    }
+
+    .connector span {
+      z-index: 1;
+      max-width: 72px;
+      background: var(--page);
+      padding: 4px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .contract {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 18px;
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 18px 20px;
+      margin-top: 18px;
+    }
+
+    .contract strong { font-size: 0.9rem; }
+
+    .contract code {
+      font-family: var(--mono);
+      font-size: 0.86rem;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .flow-step {
+      min-height: 180px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      padding: 18px;
+    }
+
+    .flow-step:nth-child(3) { background: var(--accent-soft); }
+
+    .step-number {
+      display: inline-grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      margin-bottom: 18px;
+      border-radius: 50%;
+      background: var(--text);
+      color: var(--page);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .flow-step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .profile-shell {
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .profile-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 18px;
+    }
+
+    .profile-toolbar p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .profile-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .profile-tab {
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      min-height: 36px;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .profile-tab[aria-selected="true"] {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .profile-content {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .profile-panel {
+      background: var(--surface);
+      padding: 24px;
+    }
+
+    .capabilities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .capabilities li {
+      border-radius: 5px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      padding: 6px 9px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .terminal {
+      min-height: 100%;
+      background: light-dark(#1b1d1f, #0d0f10);
+      color: #f1f0ec;
+      padding: 20px;
+      overflow-wrap: anywhere;
+      font-family: var(--mono);
+      font-size: 0.83rem;
+      line-height: 1.8;
+    }
+
+    .terminal .prompt { color: #7cc674; }
+    .terminal .arg { color: #73bcf7; }
+    .terminal .quiet { color: #aaa8a3; }
+
+    .repo-grid {
+      display: grid;
+      grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.2fr);
+      gap: 18px;
+    }
+
+    .tree {
+      margin: 0;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 22px;
+      white-space: pre-wrap;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.75;
+    }
+
+    .ownership {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .ownership-card {
+      border-top: 4px solid var(--green);
+      background: var(--green-soft);
+      padding: 22px;
+    }
+
+    .ownership-card.caller {
+      border-top-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .ownership-card ul {
+      margin: 14px 0 0;
+      padding-left: 18px;
+    }
+
+    .ownership-card li + li { margin-top: 7px; }
+
+    .language-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      gap: 18px;
+    }
+
+    .language {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 22px;
+    }
+
+    .language.recommended { border-top: 4px solid var(--accent); }
+
+    .language p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .language .tag {
+      display: inline-block;
+      margin-bottom: 16px;
+      border-color: transparent;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .mcp-note {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 18px;
+      align-items: start;
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      background: var(--surface-3);
+      padding: 22px;
+    }
+
+    .mcp-mark {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--text);
+      color: var(--page);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .mcp-note p { margin-bottom: 0; color: var(--muted); }
+
+    footer {
+      margin-top: 72px;
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    @media (max-width: 900px) {
+      .architecture { grid-template-columns: 1fr; }
+      .connector { min-height: 78px; }
+      .connector::before {
+        top: 12px;
+        bottom: 12px;
+        left: 50%;
+        right: auto;
+        width: 2px;
+        height: auto;
+      }
+      .connector::after {
+        right: auto;
+        bottom: 12px;
+        width: 10px;
+        height: 10px;
+        border-top: 0;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: rotate(45deg);
+      }
+      .connector span { background: var(--page); }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .language-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .page { width: min(100% - 24px, 1180px); padding-top: 32px; }
+      section { margin-top: 52px; }
+      .section-heading,
+      .profile-content,
+      .repo-grid,
+      .ownership,
+      .contract { grid-template-columns: 1fr; gap: 14px; }
+      .components { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow-step { min-height: auto; }
+      .profile-toolbar { align-items: start; flex-direction: column; }
+      .profile-tabs { width: 100%; }
+      .profile-tab { flex: 1; min-height: 44px; }
+      .mcp-note { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">Proposed design</p>
+      <h1>Black-box regression testing for LCORE</h1>
+      <p class="lede">
+        A small Python suite tests an already-running LCORE instance through HTTP and SSE. The caller owns deployment. The suite owns protocol checks and evidence.
+      </p>
+      <ul class="principles" aria-label="Design principles">
+        <li>Python 3.12</li>
+        <li>pytest</li>
+        <li>locked dependencies</li>
+        <li>no runner image for the PR gate</li>
+        <li>optional MCP profile</li>
+      </ul>
+    </header>
+
+    <section aria-labelledby="architecture-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Architecture</p>
+          <h2 id="architecture-title">One narrow boundary</h2>
+        </div>
+        <p>
+          The suite receives a URL and a profile. It never starts LCORE, copies product configuration, or handles provider credentials.
+        </p>
+      </div>
+
+      <div class="architecture">
+        <article class="system">
+          <div class="system-header">
+            <div>
+              <h3>Pre-existing test environment</h3>
+              <p>The system under test and its dependencies</p>
+            </div>
+            <span class="owner">CALLER OWNS</span>
+          </div>
+          <div class="components">
+            <div class="component">
+              <h3>LCORE</h3>
+              <p>The proposed image, configured from the exact pull request.</p>
+            </div>
+            <div class="component">
+              <h3>Model provider</h3>
+              <p>A fixed provider and model. Credentials stay inside LCORE.</p>
+            </div>
+            <div class="component optional">
+              <h3>RAG content</h3>
+              <p>Started only for profiles that exercise retrieval.</p>
+            </div>
+            <div class="component optional">
+              <h3>Test MCP server</h3>
+              <p>A pinned, deterministic fixture for the MCP profile.</p>
+            </div>
+          </div>
+        </article>
+
+        <div class="connector" aria-label="HTTP and SSE connection">
+          <span>HTTP<br>SSE</span>
+        </div>
+
+        <article class="system">
+          <div class="system-header">
+            <div>
+              <h3>Python regression repository</h3>
+              <p>Portable black-box tests and diagnostics</p>
+            </div>
+            <span class="owner">SUITE OWNS</span>
+          </div>
+          <div class="components">
+            <div class="component">
+              <h3>Test interface</h3>
+              <p>pytest options, typed settings, named profiles, and markers.</p>
+            </div>
+            <div class="component">
+              <h3>Protocol library</h3>
+              <p>HTTP client, SSE parsing, polling, and reusable assertions.</p>
+            </div>
+            <div class="component">
+              <h3>Capability tests</h3>
+              <p>Streaming, conversations, feedback, RAG, validation, and MCP.</p>
+            </div>
+            <div class="component">
+              <h3>Evidence</h3>
+              <p>JUnit plus redacted requests, responses, and failure context.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="contract">
+        <strong>Public test contract</strong>
+        <code>LCORE_BASE_URL=https://... &nbsp; TEST_PROFILE=release-1.10</code>
+      </div>
+    </section>
+
+    <section aria-labelledby="flow-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Release flow</p>
+          <h2 id="flow-title">From image bump to merge gate</h2>
+        </div>
+        <p>The same test command works against Compose, OCP, or a developer-run instance.</p>
+      </div>
+
+      <div class="flow">
+        <article class="flow-step">
+          <span class="step-number">01</span>
+          <h3>Open bump PR</h3>
+          <p>Automation updates the LCORE image on the release branch.</p>
+        </article>
+        <article class="flow-step">
+          <span class="step-number">02</span>
+          <h3>Prepare runtime</h3>
+          <p>The configs workflow starts LCORE, its provider, and selected fixtures.</p>
+        </article>
+        <article class="flow-step">
+          <span class="step-number">03</span>
+          <h3>Run pinned suite</h3>
+          <p>CI checks out a fixed test commit and installs its locked Python environment.</p>
+        </article>
+        <article class="flow-step">
+          <span class="step-number">04</span>
+          <h3>Test through LCORE</h3>
+          <p>pytest exercises public APIs. MCP and provider internals remain behind LCORE.</p>
+        </article>
+        <article class="flow-step">
+          <span class="step-number">05</span>
+          <h3>Publish and clean up</h3>
+          <p>JUnit and diagnostics become artifacts. The caller removes the environment.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="profiles-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Test policy</p>
+          <h2 id="profiles-title">Profiles select capabilities</h2>
+        </div>
+        <p>Missing requested dependencies fail during preflight. Tests do not silently skip required coverage.</p>
+      </div>
+
+      <div class="profile-shell">
+        <div class="profile-toolbar">
+          <p id="profile-summary" aria-live="polite">Core is the fast required PR gate.</p>
+          <div class="profile-tabs" role="tablist" aria-label="Test profile">
+            <button class="profile-tab" type="button" role="tab" aria-selected="true" data-profile="core">Core</button>
+            <button class="profile-tab" type="button" role="tab" aria-selected="false" data-profile="full">Full</button>
+          </div>
+        </div>
+        <div class="profile-content">
+          <div class="profile-panel">
+            <h3 id="profile-name">Core profile</h3>
+            <p id="profile-description">Stable API and state checks that should block an LCORE patch bump.</p>
+            <ul class="capabilities" id="profile-capabilities">
+              <li>readiness</li>
+              <li>models</li>
+              <li>streaming</li>
+              <li>conversations</li>
+              <li>feedback-api</li>
+            </ul>
+          </div>
+          <div class="profile-panel terminal" aria-label="Example command">
+            <div><span class="quiet"># exact dependency versions from uv.lock</span></div>
+            <div><span class="prompt">$</span> uv sync <span class="arg">--frozen</span></div>
+            <div><span class="prompt">$</span> LCORE_BASE_URL=http://localhost:8080 \\</div>
+            <div>&nbsp;&nbsp;TEST_PROFILE=<span class="arg" id="command-profile">core</span> \\</div>
+            <div>&nbsp;&nbsp;uv run pytest regression_tests \\</div>
+            <div>&nbsp;&nbsp;<span class="arg">--junitxml=results/junit.xml</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mcp-note">
+        <div class="mcp-mark">MCP</div>
+        <div>
+          <h3>MCP is an environment capability</h3>
+          <p>
+            LCORE must already point to the test MCP server before MCP tests run. The server uses a pinned version, deterministic tools, and known test credentials. pytest reaches it only through LCORE.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="repository-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Repository</p>
+          <h2 id="repository-title">Small enough to understand</h2>
+        </div>
+        <p>Deployment manifests, copied configs, provider secrets, and product image tags stay out.</p>
+      </div>
+
+      <div class="repo-grid">
+        <pre class="tree" aria-label="Proposed repository tree">lcore-regression/
+├── pyproject.toml
+├── uv.lock
+├── src/lcore_regression/
+│   ├── config.py
+│   ├── client.py
+│   ├── sse.py
+│   ├── assertions.py
+│   └── diagnostics.py
+├── regression_tests/
+│   ├── conftest.py
+│   ├── test_streaming.py
+│   ├── test_conversations.py
+│   ├── test_feedback.py
+│   ├── test_rag.py
+│   ├── test_validation.py
+│   ├── test_interrupt.py
+│   └── test_mcp.py
+├── profiles/
+│   ├── core.toml
+│   ├── full.toml
+│   └── release-1.10.toml
+└── tests/unit/</pre>
+
+        <div class="ownership">
+          <article class="ownership-card">
+            <h3>The suite owns</h3>
+            <ul>
+              <li>HTTP and SSE protocol behavior</li>
+              <li>Reusable assertions and polling</li>
+              <li>Capability-based test selection</li>
+              <li>Redacted diagnostics and JUnit</li>
+              <li>Unit tests for its own parser code</li>
+            </ul>
+          </article>
+          <article class="ownership-card caller">
+            <h3>The caller owns</h3>
+            <ul>
+              <li>LCORE lifecycle and configuration</li>
+              <li>Model provider and credentials</li>
+              <li>RAG content and MCP fixture</li>
+              <li>Network access and storage</li>
+              <li>Service logs and final cleanup</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="language-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Language</p>
+          <h2 id="language-title">Python is the practical choice</h2>
+        </div>
+        <p>The boundary matters more than the language. Python happens to fit LCORE’s API and the existing team knowledge well.</p>
+      </div>
+
+      <div class="language-grid">
+        <article class="language recommended">
+          <span class="tag">Recommended</span>
+          <h3>Python and pytest</h3>
+          <p>Strong HTTP and streaming support, concise fixtures, readable parameterization, and an easy migration path from the current suite.</p>
+        </article>
+        <article class="language">
+          <h3>TypeScript and Vitest</h3>
+          <p>A sound choice for a JavaScript-heavy owning team. It offers good schema tooling but no clear advantage for this API suite.</p>
+        </article>
+        <article class="language">
+          <h3>Go</h3>
+          <p>Useful when a single portable binary is a hard requirement. More code is needed for fixtures, assertions, and test reporting.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      Proposed high-level architecture for release-branch LCORE regression testing. The configs repository prepares the system. The regression repository tests it.
+    </footer>
+  </main>
+
+  <script>
+    const profiles = {
+      core: {
+        name: "Core profile",
+        summary: "Core is the fast required PR gate.",
+        description: "Stable API and state checks that should block an LCORE patch bump.",
+        capabilities: ["readiness", "models", "streaming", "conversations", "feedback-api"]
+      },
+      full: {
+        name: "Full profile",
+        summary: "Full adds feature qualification for release candidates and scheduled runs.",
+        description: "Provider-sensitive and fixture-dependent tests run after the core contract passes.",
+        capabilities: ["core", "rag", "validation", "interrupt", "mcp"]
+      }
+    };
+
+    const profileTabs = document.querySelectorAll("[data-profile]");
+    const profileName = document.getElementById("profile-name");
+    const profileSummary = document.getElementById("profile-summary");
+    const profileDescription = document.getElementById("profile-description");
+    const profileCapabilities = document.getElementById("profile-capabilities");
+    const commandProfile = document.getElementById("command-profile");
+
+    profileTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const key = tab.dataset.profile;
+        const profile = profiles[key];
+
+        profileTabs.forEach((candidate) => {
+          candidate.setAttribute("aria-selected", String(candidate === tab));
+        });
+
+        profileName.textContent = profile.name;
+        profileSummary.textContent = profile.summary;
+        profileDescription.textContent = profile.description;
+        profileCapabilities.replaceChildren(
+          ...profile.capabilities.map((capability) => {
+            const item = document.createElement("li");
+            item.textContent = capability;
+            return item;
+          })
+        );
+        commandProfile.textContent = key;
+      });
+    });
+  </script>
+</body>
+</html>
