@@ -20,6 +20,9 @@ lightspeed-config-adapter = "lightspeed_suite.config_adapter:main"
 addopts = "-ra"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "regression: tests that exercise a running Lightspeed Core deployment",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import pytest
 import requests
 
 from lightspeed_suite.assertions import (
@@ -16,6 +17,9 @@ from lightspeed_suite.assertions import (
 from lightspeed_suite.client import ActiveStream, LightspeedClient, StreamingResponse
 from lightspeed_suite.config import QueryConfig, SuiteConfig
 from lightspeed_suite.validation import extract_validation_rejection, normalize_response_text
+
+
+pytestmark = pytest.mark.regression
 
 
 def _response_json(response: requests.Response) -> Any:

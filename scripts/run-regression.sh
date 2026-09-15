@@ -153,5 +153,5 @@ COMPOSE_STARTED=1
     export FEEDBACK_STORAGE_PATH RESULTS_DIR
     export VALIDATION_PROVIDER="vllm"
 
-    uv run pytest "$@"
+    uv run pytest -m regression "$@"
 )

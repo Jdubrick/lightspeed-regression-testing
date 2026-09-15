@@ -87,7 +87,8 @@ GitHub Actions can omit `CONTAINER_ENGINE`; Docker remains the default:
 ../lightspeed-regression-testing/scripts/run-regression.sh
 ```
 
-Any arguments are forwarded to pytest:
+The runner selects tests marked `regression`. Any arguments are forwarded to
+pytest:
 
 ```bash
 ../lightspeed-regression-testing/scripts/run-regression.sh -k conversation -q
