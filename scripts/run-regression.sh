@@ -28,6 +28,8 @@ GENERATED_LCORE_CONFIG=""
 FEEDBACK_STORAGE_PATH=""
 RESULTS_DIR="${RESULTS_DIR:-}"
 COMPOSE_PROJECT_NAME=""
+CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
+COMPOSE_COMMAND=()
 VALUES_ENV_CREATED=0
 COMPOSE_STARTED=0
 
@@ -52,9 +54,9 @@ cleanup() {
 
     if [[ "$COMPOSE_STARTED" -eq 1 ]]; then
         if [[ "$status" -ne 0 ]]; then
-            docker compose "${COMPOSE_ARGS[@]}" logs >"${RESULTS_DIR}/compose.log" 2>&1 || true
+            "${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" logs >"${RESULTS_DIR}/compose.log" 2>&1 || true
         fi
-        docker compose "${COMPOSE_ARGS[@]}" down --remove-orphans >/dev/null 2>&1 || true
+        "${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" down --remove-orphans >/dev/null 2>&1 || true
     fi
 
     # Only remove the values file when this invocation created it.  A caller's
@@ -74,6 +76,15 @@ trap cleanup EXIT
 
 [[ "$CONFIGS_ROOT" != "$SUITE_ROOT" ]] || die "run this script from a lightspeed-configs checkout"
 
+case "$CONTAINER_ENGINE" in
+    docker|podman)
+        COMPOSE_COMMAND=("$CONTAINER_ENGINE" compose)
+        ;;
+    *)
+        die "unsupported CONTAINER_ENGINE '$CONTAINER_ENGINE'; expected docker or podman"
+        ;;
+esac
+
 require_file "$BASE_COMPOSE_FILE"
 require_file "$LCORE_CONFIG"
 require_file "$LLAMA_STACK_CONFIG"
@@ -81,8 +92,8 @@ require_file "$DEFAULT_VALUES_ENV"
 require_directory "$RAG_CONTENT"
 require_file "$TEST_COMPOSE_FILE"
 
-command -v docker >/dev/null 2>&1 || die "docker is required"
-docker compose version >/dev/null 2>&1 || die "docker compose is required"
+command -v "$CONTAINER_ENGINE" >/dev/null 2>&1 || die "${CONTAINER_ENGINE} is required; install it or set CONTAINER_ENGINE to docker or podman"
+"${COMPOSE_COMMAND[@]}" version >/dev/null 2>&1 || die "${CONTAINER_ENGINE} compose is required"
 command -v uv >/dev/null 2>&1 || die "uv is required"
 
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lightspeed-regression.XXXXXX")"
@@ -131,9 +142,9 @@ COMPOSE_ARGS=(
 # Compose resolving sources relative to the upstream repository unexpectedly.
 export GENERATED_LCORE_CONFIG FEEDBACK_STORAGE_PATH RESULTS_DIR
 
-docker compose "${COMPOSE_ARGS[@]}" config -q
+"${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" config -q
 COMPOSE_STARTED=1
-docker compose "${COMPOSE_ARGS[@]}" up -d --wait
+"${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" up -d --wait
 
 (
     cd -- "$SUITE_ROOT"

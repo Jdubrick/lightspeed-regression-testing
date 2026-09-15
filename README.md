@@ -26,11 +26,13 @@ changes without duplicating the configured response in the test suite.
 ## Prerequisites
 
 - `uv`
-- Docker with the Compose plugin
+- Docker with the Compose plugin (the default), or Podman with its Compose
+  provider for local runs
 - A matching `lightspeed-configs` checkout with its RAG content prepared
 
-The runner invokes Docker Compose directly. `uv` uses the Python version
-declared in `pyproject.toml`.
+The runner uses Docker Compose by default. Set `CONTAINER_ENGINE=podman` to
+use Podman Compose locally. `uv` uses the Python version declared in
+`pyproject.toml`.
 
 ## Required runtime values
 
@@ -61,6 +63,27 @@ Run the script from the root of `lightspeed-configs`:
 
 ```bash
 cd lightspeed-configs
+../lightspeed-regression-testing/scripts/run-regression.sh
+```
+
+For a local Podman run:
+
+```bash
+CONTAINER_ENGINE=podman \
+  ../lightspeed-regression-testing/scripts/run-regression.sh
+```
+
+The runner requires `rag-content/` to already exist in `lightspeed-configs`.
+Prepare it with the same container engine you will use for the suite, for
+example:
+
+```bash
+make get-rag CONTAINER_ENGINE=podman
+```
+
+GitHub Actions can omit `CONTAINER_ENGINE`; Docker remains the default:
+
+```bash
 ../lightspeed-regression-testing/scripts/run-regression.sh
 ```
 
