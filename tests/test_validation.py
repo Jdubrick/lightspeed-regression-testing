@@ -16,7 +16,7 @@ def write_config(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def test_extracts_rejection_by_provider_type_not_position(tmp_path: Path) -> None:
+def test_extracts_rejection_by_shield_name_not_position(tmp_path: Path) -> None:
     path = tmp_path / "config.yaml"
     rejection = """
       Please ask a software development or cloud infrastructure question.
@@ -24,15 +24,14 @@ def test_extracts_rejection_by_provider_type_not_position(tmp_path: Path) -> Non
     write_config(
         path,
         {
-            "providers": {
-                "safety": [
-                    {"provider_type": "other", "config": {}},
-                    {
-                        "provider_type": "inline::lightspeed_question_validity",
-                        "config": {"invalid_question_response": rejection},
-                    },
-                ]
-            }
+            "shields": [
+                {"name": "other", "config": {}},
+                {
+                    "name": "lightspeed_question_validity",
+                    "provider_id": "${env.ENABLE_VALIDATION:=__disabled__}",
+                    "config": {"invalid_question_response": rejection},
+                },
+            ]
         },
     )
 
@@ -43,25 +42,21 @@ def test_extracts_rejection_by_provider_type_not_position(tmp_path: Path) -> Non
     "payload",
     [
         {},
-        {"providers": {}},
-        {"providers": {"safety": []}},
+        {"shields": {}},
+        {"shields": []},
         {
-            "providers": {
-                "safety": [
-                    {"provider_type": "inline::lightspeed_question_validity", "config": {}},
-                    {"provider_type": "inline::lightspeed_question_validity", "config": {}},
-                ]
-            }
+            "shields": [
+                {"name": "lightspeed_question_validity", "config": {}},
+                {"name": "lightspeed_question_validity", "config": {}},
+            ]
         },
         {
-            "providers": {
-                "safety": [
-                    {
-                        "provider_type": "inline::lightspeed_question_validity",
-                        "config": {"invalid_question_response": "  "},
-                    }
-                ]
-            }
+            "shields": [
+                {
+                    "name": "lightspeed_question_validity",
+                    "config": {"invalid_question_response": "  "},
+                }
+            ]
         },
     ],
 )

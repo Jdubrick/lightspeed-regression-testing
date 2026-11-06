@@ -56,6 +56,68 @@ def _load_yaml_mapping(path: Path) -> dict[str, Any]:
     return raw
 
 
+def _contains_required_settings(existing: Any, required: dict[str, Any]) -> bool:
+    """Check required fields while allowing extra provider settings."""
+
+    if not isinstance(existing, dict):
+        return False
+    for key, value in required.items():
+        if isinstance(value, dict):
+            if not _contains_required_settings(existing.get(key), value):
+                return False
+        elif existing.get(key) != value:
+            return False
+    return True
+
+
+def _ensure_test_inference_providers(config: dict[str, Any]) -> None:
+    """Add the providers needed for OpenAI queries and vLLM validation."""
+
+    inference = config.setdefault("inference", {})
+    if not isinstance(inference, dict):
+        raise ConfigAdapterError("LCORE config inference must be a mapping")
+    providers = inference.setdefault("providers", [])
+    if not isinstance(providers, list):
+        raise ConfigAdapterError("LCORE config inference.providers must be a list")
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for index, provider in enumerate(providers):
+        if not isinstance(provider, dict) or not isinstance(provider.get("type"), str):
+            raise ConfigAdapterError(
+                f"LCORE config inference.providers[{index}] must have a text type"
+            )
+        # Core uses the hyphenated type when the optional id is absent.
+        provider_id = provider.get("id") or provider["type"].replace("_", "-")
+        if not isinstance(provider_id, str) or not provider_id.strip():
+            raise ConfigAdapterError("Inference provider id must be nonempty text")
+        if provider_id in by_id:
+            raise ConfigAdapterError(f"Duplicate inference provider id: {provider_id!r}")
+        by_id[provider_id] = provider
+
+    required_providers = [
+        {"type": "openai", "id": "openai", "api_key_env": "OPENAI_API_KEY"},
+        {
+            "type": "vllm",
+            "id": "vllm",
+            "api_key_env": "VLLM_API_KEY",
+            "extra": {
+                "base_url": "${env.VLLM_URL:=}",
+                "max_tokens": "${env.VLLM_MAX_TOKENS:=4096}",
+                "network": {"tls": {"verify": "${env.VLLM_TLS_VERIFY:=true}"}},
+            },
+        },
+    ]
+    for required in required_providers:
+        provider_id = required["id"]
+        existing = by_id.get(provider_id)
+        if existing is None:
+            providers.append(required)
+        elif not _contains_required_settings({**existing, "id": provider_id}, required):
+            raise ConfigAdapterError(
+                f"Inference provider {provider_id!r} already exists with conflicting settings"
+            )
+
+
 def augment_lightspeed_config(
     input_path: str | Path,
     output_path: str | Path,
@@ -63,10 +125,10 @@ def augment_lightspeed_config(
     server_name: str = DEFAULT_TEST_MCP_SERVER_NAME,
     server_url: str = DEFAULT_TEST_MCP_URL,
 ) -> Path:
-    """Write an LCORE config containing the controlled test MCP server.
+    """Write a 2.1 LCORE config with query/validation providers and test MCP.
 
     The source is read-only. Existing entries and their order are preserved;
-    an exact existing test entry makes the operation idempotent.
+    compatible existing test entries make the operation idempotent.
     """
 
     source = Path(input_path)
@@ -81,6 +143,7 @@ def augment_lightspeed_config(
             raise ConfigAdapterError("Generated LCORE config must not overwrite the source")
 
     config = _load_yaml_mapping(source)
+    _ensure_test_inference_providers(config)
     raw_servers = config.get("mcp_servers", [])
     if not isinstance(raw_servers, list):
         raise ConfigAdapterError("LCORE config mcp_servers must be a list")

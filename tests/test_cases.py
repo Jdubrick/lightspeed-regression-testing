@@ -431,7 +431,7 @@ def test_safety_guard_catches_problematic_queries(
         record.set_request(_request_snapshot(user_id, query_config, query))
         record.set_response(_stream_response_snapshot(response))
         assert response.status_code == 200
-        expected_rejection = extract_validation_rejection(config.llama_stack_config_path)
+        expected_rejection = extract_validation_rejection(config.lcore_config_path)
         actual_text = _assemble_stream_text(response.events)
         assert normalize_response_text(expected_rejection) == normalize_response_text(actual_text), (
             "Expected problematic query to return the configured validation rejection"

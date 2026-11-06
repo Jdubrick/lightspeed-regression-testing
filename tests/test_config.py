@@ -8,7 +8,7 @@ from lightspeed_suite.config import load_config
 def _set_required_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VALIDATION_PROVIDER", "vllm")
     monkeypatch.setenv("VALIDATION_MODEL_NAME", "validation-model")
-    monkeypatch.setenv("LLAMA_STACK_CONFIG_PATH", "/configs/config.yaml")
+    monkeypatch.setenv("LCORE_CONFIG_PATH", "/configs/lightspeed-stack.yaml")
     monkeypatch.setenv("FEEDBACK_STORAGE_PATH", "/tmp/feedback")
 
 

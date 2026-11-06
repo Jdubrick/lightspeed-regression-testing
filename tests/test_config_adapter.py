@@ -25,23 +25,63 @@ def test_adapter_adds_server_and_preserves_existing_entries(tmp_path: Path) -> N
     source = tmp_path / "lightspeed-stack.yaml"
     output = tmp_path / "generated.yaml"
     existing = {"name": "existing", "provider_id": "model-context-protocol", "url": "http://existing"}
-    write_config(source, {"name": "stack", "mcp_servers": [existing]})
+    original = {
+        "name": "stack",
+        "inference": {"providers": [{"type": "sentence_transformers"}]},
+        "rag": {"okp": {"offline": True}, "retrieval": {"tool": {"sources": ["okp"]}}},
+        "shields": [{"name": "lightspeed_question_validity", "config": {}}],
+        "mcp_servers": [existing],
+    }
+    write_config(source, original)
+    source_bytes = source.read_bytes()
 
     augment_lightspeed_config(source, output)
 
     generated = read_config(output)
     assert generated["mcp_servers"] == [existing, build_test_mcp_server()]
-    assert read_config(source)["mcp_servers"] == [existing]
+    assert generated["inference"]["providers"] == [
+        {"type": "sentence_transformers"},
+        {"type": "openai", "id": "openai", "api_key_env": "OPENAI_API_KEY"},
+        {
+            "type": "vllm",
+            "id": "vllm",
+            "api_key_env": "VLLM_API_KEY",
+            "extra": {
+                "base_url": "${env.VLLM_URL:=}",
+                "max_tokens": "${env.VLLM_MAX_TOKENS:=4096}",
+                "network": {"tls": {"verify": "${env.VLLM_TLS_VERIFY:=true}"}},
+            },
+        },
+    ]
+    assert generated["rag"] == original["rag"]
+    assert generated["shields"] == original["shields"]
+    assert source.read_bytes() == source_bytes
 
 
 def test_adapter_is_idempotent_for_identical_entry(tmp_path: Path) -> None:
     source = tmp_path / "lightspeed-stack.yaml"
     output = tmp_path / "generated.yaml"
-    write_config(source, {"mcp_servers": [build_test_mcp_server()]})
+    existing_provider = {
+        "type": "openai",
+        "id": "openai",
+        "api_key_env": "OPENAI_API_KEY",
+        "allowed_models": ["gpt-4o-mini"],
+    }
+    write_config(
+        source,
+        {
+            "inference": {"providers": [existing_provider]},
+            "mcp_servers": [build_test_mcp_server()],
+        },
+    )
 
     augment_lightspeed_config(source, output)
+    second_output = tmp_path / "generated-again.yaml"
+    augment_lightspeed_config(output, second_output)
 
     assert read_config(output)["mcp_servers"] == [build_test_mcp_server()]
+    assert read_config(output)["inference"]["providers"][0] == existing_provider
+    assert read_config(second_output) == read_config(output)
 
 
 def test_adapter_uses_default_url_when_appending(tmp_path: Path) -> None:

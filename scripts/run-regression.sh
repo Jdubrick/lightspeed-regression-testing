@@ -2,11 +2,10 @@
 
 set -Eeuo pipefail
 
-# This script is intended to be run from the root of a lightspeed-configs
-# checkout.  The regression repository is expected to be checked out beside
-# that checkout, for example:
+# Run from a release-2.1 rhdh-intelligent-assistant-configs checkout.
+# The regression repository can be checked out beside it, for example:
 #
-#   lightspeed-configs/
+#   rhdh-intelligent-assistant-configs/
 #   lightspeed-regression-testing/
 #
 # Keep paths passed to Compose absolute where they cross the repository
@@ -16,12 +15,12 @@ set -Eeuo pipefail
 readonly SUITE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 readonly CONFIGS_ROOT="$(pwd -P)"
 readonly BASE_COMPOSE_FILE="${CONFIGS_ROOT}/compose/compose.yaml"
+readonly OKP_COMPOSE_FILE="${CONFIGS_ROOT}/compose/compose-okp.yaml"
 readonly TEST_COMPOSE_FILE="${SUITE_ROOT}/compose.test.yaml"
 readonly DEFAULT_VALUES_ENV="${CONFIGS_ROOT}/env/default-values.env"
 readonly VALUES_ENV="${CONFIGS_ROOT}/env/values.env"
 readonly LCORE_CONFIG="${CONFIGS_ROOT}/lightspeed-core-configs/lightspeed-stack.yaml"
-readonly LLAMA_STACK_CONFIG="${CONFIGS_ROOT}/llama-stack-configs/config.yaml"
-readonly RAG_CONTENT="${CONFIGS_ROOT}/rag-content"
+readonly IMAGES_CONFIG="${CONFIGS_ROOT}/images.yaml"
 
 TEMP_ROOT=""
 GENERATED_LCORE_CONFIG=""
@@ -41,11 +40,6 @@ die() {
 require_file() {
     local path="$1"
     [[ -f "$path" ]] || die "required file is missing: ${path}"
-}
-
-require_directory() {
-    local path="$1"
-    [[ -d "$path" ]] || die "required directory is missing: ${path}"
 }
 
 cleanup() {
@@ -74,7 +68,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-[[ "$CONFIGS_ROOT" != "$SUITE_ROOT" ]] || die "run this script from a lightspeed-configs checkout"
+[[ "$CONFIGS_ROOT" != "$SUITE_ROOT" ]] || die "run this script from a release-2.1 rhdh-intelligent-assistant-configs checkout"
 
 case "$CONTAINER_ENGINE" in
     docker|podman)
@@ -86,15 +80,24 @@ case "$CONTAINER_ENGINE" in
 esac
 
 require_file "$BASE_COMPOSE_FILE"
+require_file "$OKP_COMPOSE_FILE"
 require_file "$LCORE_CONFIG"
-require_file "$LLAMA_STACK_CONFIG"
+require_file "$IMAGES_CONFIG"
 require_file "$DEFAULT_VALUES_ENV"
-require_directory "$RAG_CONTENT"
 require_file "$TEST_COMPOSE_FILE"
 
 command -v "$CONTAINER_ENGINE" >/dev/null 2>&1 || die "${CONTAINER_ENGINE} is required; install it or set CONTAINER_ENGINE to docker or podman"
 "${COMPOSE_COMMAND[@]}" version >/dev/null 2>&1 || die "${CONTAINER_ENGINE} compose is required"
 command -v uv >/dev/null 2>&1 || die "uv is required"
+command -v yq >/dev/null 2>&1 || die "yq v4 (mikefarah/yq) is required"
+YQ_VERSION="$(yq --version 2>&1)" || die "unable to check yq version: ${YQ_VERSION}"
+case "$YQ_VERSION" in
+    "yq (https://github.com/mikefarah/yq/) version v4."*)
+        ;;
+    *)
+        die "Mike Farah's yq v4 is required; found: ${YQ_VERSION}"
+        ;;
+esac
 
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lightspeed-regression.XXXXXX")"
 GENERATED_LCORE_CONFIG="${TEMP_ROOT}/lightspeed-stack.test.yaml"
@@ -121,6 +124,17 @@ if [[ ! -e "$VALUES_ENV" ]]; then
     cp -- "$DEFAULT_VALUES_ENV" "$VALUES_ENV"
 fi
 
+# Use the candidate's images.yaml, including PR edits, over env-file image defaults.
+LIGHTSPEED_CORE_IMAGE="$(yq -er '."lightspeed-core".image | select(tag == "!!str")' "$IMAGES_CONFIG")" \
+    || die "images.yaml must define lightspeed-core.image as text"
+OKP_IMAGE="$(yq -er '.okp.image | select(tag == "!!str")' "$IMAGES_CONFIG")" \
+    || die "images.yaml must define okp.image as text"
+[[ -n "$LIGHTSPEED_CORE_IMAGE" && "$LIGHTSPEED_CORE_IMAGE" != *[[:space:]]* ]] \
+    || die "lightspeed-core.image must be nonempty and contain no whitespace"
+[[ -n "$OKP_IMAGE" && "$OKP_IMAGE" != *[[:space:]]* ]] \
+    || die "okp.image must be nonempty and contain no whitespace"
+export LIGHTSPEED_CORE_IMAGE OKP_IMAGE
+
 # The adapter owns YAML changes; this runner only supplies the source and
 # destination paths.  The generated file is mounted by compose.test.yaml.
 (
@@ -131,10 +145,14 @@ fi
         --test-mcp-url "http://test-mcp-server:8888/mcp"
 )
 
+# Let local values.env supply Compose variables such as OKP_ACCESS_KEY.
+# Exported shell values still take precedence over both files.
 COMPOSE_ARGS=(
     --project-name "$COMPOSE_PROJECT_NAME"
     --env-file "$DEFAULT_VALUES_ENV"
+    --env-file "$VALUES_ENV"
     -f "$BASE_COMPOSE_FILE"
+    -f "$OKP_COMPOSE_FILE"
     -f "$TEST_COMPOSE_FILE"
 )
 
@@ -143,13 +161,15 @@ COMPOSE_ARGS=(
 export GENERATED_LCORE_CONFIG FEEDBACK_STORAGE_PATH RESULTS_DIR
 
 "${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" config -q
+# Fetch the selected images before starting the services.
+"${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" pull lightspeed-core okp test-mcp-server
 COMPOSE_STARTED=1
 "${COMPOSE_COMMAND[@]}" "${COMPOSE_ARGS[@]}" up -d --wait
 
 (
     cd -- "$SUITE_ROOT"
     export LS_BASE_URL="${LS_BASE_URL:-http://localhost:8080}"
-    export LLAMA_STACK_CONFIG_PATH="$LLAMA_STACK_CONFIG"
+    export LCORE_CONFIG_PATH="$GENERATED_LCORE_CONFIG"
     export FEEDBACK_STORAGE_PATH RESULTS_DIR
     export VALIDATION_PROVIDER="vllm"
 

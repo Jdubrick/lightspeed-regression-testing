@@ -19,7 +19,7 @@ class SuiteConfig:
     openai_model: str
     validation_provider: str
     validation_model_name: str
-    llama_stack_config_path: str
+    lcore_config_path: str
     user_id_prefix: str
     feedback_storage_path: str
     results_dir: str
@@ -92,7 +92,7 @@ def load_config() -> SuiteConfig:
         openai_model=str(get_env("OPENAI_MODEL", "gpt-4o-mini")),
         validation_provider=validation_provider,
         validation_model_name=str(get_env("VALIDATION_MODEL_NAME")),
-        llama_stack_config_path=str(get_env("LLAMA_STACK_CONFIG_PATH")),
+        lcore_config_path=str(get_env("LCORE_CONFIG_PATH")),
         user_id_prefix=str(get_env("TEST_USER_ID_PREFIX", "test-user")),
         feedback_storage_path=str(get_env("FEEDBACK_STORAGE_PATH")),
         results_dir=str(get_env("RESULTS_DIR", "./results")),
@@ -112,8 +112,9 @@ def load_config() -> SuiteConfig:
         ),
         mcp_server_name=str(get_env("MCP_SERVER_NAME", "test-mcp-server")),
         mcp_valid_auth_header=str(get_env("MCP_VALID_AUTH_HEADER", "test-secret-token")),
+        # Core 0.7 normalizes Bearer prefixes, so invalid auth needs a different token.
         mcp_invalid_auth_header=str(
-            get_env("MCP_INVALID_AUTH_HEADER", "Bearer test-secret-token")
+            get_env("MCP_INVALID_AUTH_HEADER", "invalid-test-secret-token")
         ),
     )
 
