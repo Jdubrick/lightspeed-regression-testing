@@ -162,9 +162,17 @@ def test_rag_referenced_document_links_are_accessible(
         for doc in referenced_documents:
             doc_url = doc.get("doc_url")
             assert isinstance(doc_url, str) and doc_url.startswith("http")
-            linked = requests.get(doc_url, timeout=30, allow_redirects=True)
+            # Use the same User-Agent for all citation checks; some docs reject python-requests.
+            linked = requests.get(
+                doc_url,
+                headers={"User-Agent": "curl/8.7.1"},
+                timeout=30,
+                allow_redirects=True,
+            )
             urls_checked.append({"url": doc_url, "status_code": linked.status_code})
-            assert linked.status_code < 400, f"URL failed accessibility smoke check: {doc_url}"
+            assert linked.status_code < 400, (
+                f"URL failed accessibility smoke check: {doc_url} (HTTP {linked.status_code})"
+            )
         record.set_response({"stream": _stream_response_snapshot(response), "urls_checked": urls_checked})
 
 
